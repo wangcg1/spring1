@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	                    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+                           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+                           http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+                           http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd"
+						   default-autowire="byName" xmlns:util="http://www.springframework.org/schema/util">
+	
+	<!-- Root Context: defines shared resources visible to all other web components -->
+	 <!-- Use annotations (@Autowired) for property injection -->
+	<context:annotation-config />
+	
+	<!--
+		Spring will find all of our service and DAO components because they
+		have @Service and @Repository annotations. We do not need to configure
+		them in XML
+	-->
+    <context:component-scan base-package="com.ap">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+	
+	<bean id="propertyConfigurer"
+        class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+        	<list> 
+	        	<value>classpath:jdbc-mysql.properties</value>	
+        	</list>
+        </property>
+    </bean>
+	
+		<!-- Configure a JDBC datasource for Hibernate to connect with -->
+	<bean id="dataSource"
+		class="com.mchange.v2.c3p0.ComboPooledDataSource"  destroy-method="close">
+		<property name="driverClass" value="${connect.driver_class}" />
+		<property name="jdbcUrl" value="${connect.url}" />
+		<property name="user" value="${connect.username}" />
+		<property name="password" value="${connect.password}" />
+		<property name="initialPoolSize" value="${db.initialPoolSize}"/>
+		<property name="minPoolSize" value="${db.minPoolSize}"/>
+		<property name="maxPoolSize" value="${db.maxPoolSize}"/>
+		<property name="acquireIncrement" value="${db.acquireIncrement}"/>
+		<property name="maxIdleTime" value="${db.maxIdleTime}"/>
+		<property name="checkoutTimeout" value="${db.checkoutTimeout}"/>
+		<property name="testConnectionOnCheckin" value="true"/>
+	</bean>
+
+	<!-- Configure a Hibernate SessionFactory -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="packagesToScan" value="com.ap.tako.entity"/>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">${hibernate.dialect}</prop>
+				<prop key="hibernate.show_sql">${show_sql}</prop>
+				<prop key="hibernate.hbm2ddl.auto">none</prop>
+			</props>
+		</property>
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:/com/ap/tako/entity/</value>
+			</list>
+		</property>
+	</bean>
+	
+	
+	
+	<!--
+		Transaction manager for a single Hibernate SessionFactory (alternative
+		to JTA)
+	-->
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	
+   	<bean name="hibernateInterceptor"
+		class="org.springframework.orm.hibernate3.HibernateInterceptor">
+		<property name="sessionFactory">
+			<ref bean="sessionFactory" />
+		</property>
+	</bean>
+
+	<bean id="baseServiceProxy" class="org.springframework.aop.framework.ProxyFactoryBean"
+		abstract="true">
+		<property name="interceptorNames">
+			<list>
+				<value>hibernateInterceptor</value>
+			</list>
+		</property>
+	</bean>
+	
+
+	<!-- Apply transactions to all methods in our service layer. -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<!-- the transactional semantics... -->
+		<tx:attributes>
+			<tx:method name="save*" propagation="REQUIRED" />
+			<tx:method name="edit*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="delete*" propagation="REQUIRED" />
+			<tx:method name="create*" propagation="REQUIRED" />
+			<tx:method name="remove*" propagation="REQUIRED" />
+			<tx:method name="reorder*" propagation="REQUIRED" />
+			<tx:method name="change*" propagation="REQUIRED" />
+			<tx:method name="batch*" propagation="REQUIRED" />
+			<!-- all other methods are read-only 
+			<tx:method name="*" read-only="true" />-->
+		</tx:attributes>
+	</tx:advice>
+	
+   	<tx:annotation-driven transaction-manager="transactionManager"/>
+   	
+	<aop:config>
+		<aop:pointcut id="serviceMethods"
+			expression="execution(* com.ap.tako.service.*.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="serviceMethods" />
+	</aop:config>
+	
+	
+	<!-- redis -->
+	<!-- POOL配置 --> 
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<property name="maxActive" value="20" />
+		<property name="maxIdle" value="20" />
+		<property name="maxWait" value="10000" />
+		<property name="testOnBorrow" value="true" />
+	</bean>
+	
+	<!-- jedis shard信息配置 -->
+	<bean id="jedis.shardInfo" class="redis.clients.jedis.JedisShardInfo">
+		<constructor-arg index="0" value="122.11.45.195" />
+		<constructor-arg index="1" value="6379" />
+	</bean>
+	
+	<!-- jedis shard pool配置 -->
+	<bean id="shardedJedisPool" class="redis.clients.jedis.ShardedJedisPool">
+		<constructor-arg index="0" ref="jedisPoolConfig" />
+		<constructor-arg index="1">
+			<list>
+				<ref bean="jedis.shardInfo" />
+			</list>
+		</constructor-arg>
+	</bean>
+	<bean id="redis" class="com.ap.tako.cache.TAKORedis">
+    	<property name="app" value="site"></property>
+    	<constructor-arg ref="shardedJedisPool"/>
+    </bean>
+		
+</beans>

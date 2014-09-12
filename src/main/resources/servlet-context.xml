@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd">
+	
+	
+	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/views/" />
+		<property name="suffix" value=".html" />
+	</bean>
+
+	<mvc:view-controller path="/" view-name="index"/>
+	
+	<context:component-scan base-package="com.ap.tako" />
+	
+	<mvc:annotation-driven />
+	
+	<context:annotation-config />
+	
+	<mvc:interceptors>
+		<bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" />
+	</mvc:interceptors>
+
+	<mvc:resources mapping="/resources/**" location="/resources/" />
+	<mvc:default-servlet-handler/>  
+	
+	<bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver" />
+	<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver" />
+
+	<bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+		<property name="basename" value="/WEB-INF/messages/messages" />
+		<property name="cacheSeconds" value="0" />
+	</bean>
+	
+
+	<bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver">
+		<property name="order" value="1" />
+		<property name="mediaTypes">
+			<map>
+				<entry key="xml" value="application/xml" />
+				<entry key="atom" value="application/atom+xml" />
+				<entry key="html" value="text/html" />
+				<entry key="json" value="application/json" />
+			</map>
+		</property>
+		
+		<property name="viewResolvers">
+			<list>
+				<bean class="org.springframework.web.servlet.view.BeanNameViewResolver" />
+			</list>
+		</property>
+		
+		<!--<property name="defaultViews">
+			<list>
+				<bean class="org.springframework.web.servlet.view.xml.MarshallingView">
+					<constructor-arg>
+			      		<bean class="org.springframework.oxm.xstream.XStreamMarshaller">
+			    	     	<property name="autodetectAnnotations" value="true"/>
+				      	</bean>
+			  		</constructor-arg>
+				</bean>
+				<bean class="org.springframework.web.servlet.view.json.MappingJacksonJsonView" />
+			</list>
+		</property>-->
+	</bean> 
+	
+	
+</beans>
